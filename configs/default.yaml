@@ -1,0 +1,6 @@
+# Local nuScenes root holding samples/CAM_*.
+# Overridden by the NUSCENES_ROOT env var.
+nuscenes_root: /media/g6/My Passport1/nuscenes
+
+# GoldenViewVQA dataset checkout (gitignored, see external/.goldenview-commit)
+dataset_dir: external/goldenview

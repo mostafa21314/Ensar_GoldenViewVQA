@@ -1,0 +1,12 @@
+external/
+__pycache__/
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+runs/
+outputs/
+predictions/
+private/
+.DS_Store
+.env
