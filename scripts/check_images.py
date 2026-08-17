@@ -42,8 +42,8 @@ def main() -> int:
 
     print(f"\nunique images missing across splits: {len(all_missing)}")
     if all_missing:
-        print("Download the remaining nuScenes v1.0-trainval blobs, then extract:")
-        print("  tar -xzf v1.0-trainvalNN_blobs.tgz --wildcards 'samples/CAM_*'")
+        print("Fetch the keyframe tarballs (blobs 01-03 cover this benchmark):")
+        print("  bash scripts/fetch_nuscenes.sh")
     return 1 if all_missing else 0
 
 
