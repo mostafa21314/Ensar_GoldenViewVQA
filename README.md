@@ -22,12 +22,21 @@ git clone https://huggingface.co/datasets/GoldenViewVQA/GoldenViewVQA external/g
 
 Pinned at commit `c9402cd4116a3d1142237dffd332803e9c843e20` (see `external/.goldenview-commit`).
 
-nuScenes images are not redistributed. Download `v1.0-trainval` camera data from
-the official nuScenes site and extract keyframe images only:
+nuScenes images are not redistributed and must be obtained under the nuScenes
+Terms of Use. Only blobs 01-03 are needed, and only the keyframe (`samples/`)
+tarballs, which excludes sweeps and cuts the download from ~86 GB to ~12 GB:
 
 ```bash
-tar -xzf v1.0-trainvalNN_blobs.tgz --wildcards 'samples/CAM_*'
+B=https://motional-nuscenes.s3.ap-northeast-1.amazonaws.com/public/v1.0
+mkdir -p "$NUSCENES_ROOT" && cd "$NUSCENES_ROOT"
+for n in 01 02 03; do
+  curl -L "$B/v1.0-trainval${n}_keyframes.tgz" | tar -xz --wildcards 'samples/CAM_*'
+done
 ```
+
+Streaming through `tar` keeps only the camera JPEGs (~9 GB) and never writes a
+tarball to disk. The bucket is the AWS Open Data mirror: anonymous HTTPS, no
+signed URLs. Total requirement is 438 unique images across all splits.
 
 Point the code at it:
 

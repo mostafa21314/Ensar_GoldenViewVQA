@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "goldenview"
+version = "0.1.0"
+description = "EMNLP GoldenView VQA shared task: multi-view evidence identification and answering"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Mostafa Gaafar", email = "mostafa21314@aucegypt.edu" }]
+dependencies = [
+    "pyyaml>=6.0",
+    "pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/goldenview"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "scripts"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
