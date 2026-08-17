@@ -4,3 +4,8 @@ nuscenes_root: /media/g6/My Passport1/nuscenes
 
 # GoldenViewVQA dataset checkout (gitignored, see external/.goldenview-commit)
 dataset_dir: external/goldenview
+
+# Local SSD cache holding only the 438 images the benchmark references (~50 MB).
+# Populated from nuscenes_root so work does not depend on the external drive
+# being mounted. Resolution order: image_cache, then nuscenes_root.
+image_cache: data/image_cache
