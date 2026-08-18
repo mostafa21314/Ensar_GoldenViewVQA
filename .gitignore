@@ -9,3 +9,4 @@ data/image_cache/
 private/
 .DS_Store
 .env
+docs/
