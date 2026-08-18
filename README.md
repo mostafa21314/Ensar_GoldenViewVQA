@@ -35,7 +35,7 @@ Terms of Use. Only blobs 01-03 are needed, and only the keyframe (`samples/`)
 tarballs, which excludes sweeps and cuts the download from ~86 GB to ~12 GB:
 
 ```bash
-export NUSCENES_ROOT="/media/g6/My Passport1/nuscenes"   # dir that will hold samples/CAM_*
+export NUSCENES_ROOT=/home/g6/nuscenes   # dir that will hold samples/CAM_*
 B=https://motional-nuscenes.s3.ap-northeast-1.amazonaws.com/public/v1.0
 mkdir -p "$NUSCENES_ROOT" && cd "$NUSCENES_ROOT"
 for n in 01 02 03; do
