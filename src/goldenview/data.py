@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
+
+from .config import dataset_dir, image_cache, nuscenes_root
 
 VIEWS = (
     "CAM_FRONT",
@@ -17,30 +18,17 @@ VIEWS = (
     "CAM_BACK_RIGHT",
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DATASET_DIR = REPO_ROOT / "external" / "goldenview"
+# A seventh view label, valid in gold and in submissions, but never an input image.
+NONE_OF_THE_ABOVE = "NONE_OF_THE_ABOVE"
+VIEW_LABELS = VIEWS + (NONE_OF_THE_ABOVE,)
+
+ANSWER_IDS = ("A", "B", "C", "D")
 
 SPLIT_FILES = {
     "eval": "data/eval.jsonl",
     "eval_inputs": "data/eval_inputs.jsonl",
     "test": "data/test_inputs.jsonl",
 }
-
-
-def nuscenes_root() -> Path:
-    """Local nuScenes root holding samples/CAM_*.
-
-    NUSCENES_ROOT wins; otherwise fall back to configs/default.yaml.
-    """
-    env = os.environ.get("NUSCENES_ROOT")
-    if env:
-        return Path(env)
-    config = REPO_ROOT / "configs" / "default.yaml"
-    if config.exists():
-        for line in config.read_text().splitlines():
-            if line.startswith("nuscenes_root:"):
-                return Path(line.split(":", 1)[1].strip())
-    raise RuntimeError("set NUSCENES_ROOT or nuscenes_root in configs/default.yaml")
 
 
 @dataclass(frozen=True)
@@ -63,11 +51,11 @@ class Record:
         return self.golden_view is not None
 
 
-def load_split(split: str, dataset_dir: Path | None = None) -> list[Record]:
+def load_split(split: str, directory: Path | None = None) -> list[Record]:
     """Read one split into Record objects. Test records carry no labels."""
     if split not in SPLIT_FILES:
         raise KeyError(f"unknown split {split!r}, expected one of {sorted(SPLIT_FILES)}")
-    path = (dataset_dir or DATASET_DIR) / SPLIT_FILES[split]
+    path = (directory or dataset_dir()) / SPLIT_FILES[split]
     if not path.exists():
         raise FileNotFoundError(
             f"{path} missing. Clone the dataset: "
@@ -83,13 +71,33 @@ def load_split(split: str, dataset_dir: Path | None = None) -> list[Record]:
 
 
 def resolve_views(record: Record, root: Path | None = None) -> dict[str, Path]:
-    """Map each camera name to its absolute image path, present or not."""
+    """Map each camera to its path under the full nuScenes root, present or not.
+
+    Deliberately ignores the local cache: this is what verifies the root itself
+    is complete.
+    """
     base = Path(root) if root is not None else nuscenes_root()
     return {view: base / record.views[view] for view in VIEWS}
 
 
+def image_paths(record: Record, root: Path | None = None) -> dict[str, Path]:
+    """Map each camera to a readable image path, preferring the local cache.
+
+    The cache holds only the frames the benchmark references, so it is small
+    enough to sit on fast local disk while the full root may not be.
+    """
+    cache = image_cache()
+    base = Path(root) if root is not None else nuscenes_root()
+    resolved = {}
+    for view in VIEWS:
+        rel = record.views[view]
+        cached = cache / rel if cache else None
+        resolved[view] = cached if cached and cached.exists() else base / rel
+    return resolved
+
+
 def missing_views(record: Record, root: Path | None = None) -> list[str]:
-    """Camera names whose image is not on disk."""
+    """Camera names whose image is not on disk under the full root."""
     return [v for v, p in resolve_views(record, root).items() if not p.exists()]
 
 
