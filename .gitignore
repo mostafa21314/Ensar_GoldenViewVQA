@@ -7,6 +7,7 @@ venv/
 predictions/
 data/image_cache/
 data/prompts_*.jsonl
+data/shard_*.jsonl
 data/samples_*.json
 data/detections.json
 private/
