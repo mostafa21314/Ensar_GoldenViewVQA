@@ -1,21 +1,10 @@
 % =============================================================================
 % GroundLM 2026 Shared Tasks - GoldenViewVQA system description paper
-%
-% Built on the official ACL style files (acl-org/acl-style-files), copied here
-% UNMODIFIED. Do not change margins, spacing, fonts or page dimensions: the
-% organizers check for this.
-%
-% Length: 4-8 pages of main content. References may spill past that. The
-% Limitations and Ethics sections are unnumbered and do not count toward the
-% main-content limit under ACL rules.
-%
-% Compile:  pdflatex main -> bibtex main -> pdflatex main -> pdflatex main
+% Official ACL style files, copied UNMODIFIED. Do not alter margins, spacing,
+% fonts or page dimensions.
+% Compile: latexmk -pdf main.tex
 % =============================================================================
 \documentclass[11pt]{article}
-
-% `review` shows line numbers for anonymous review; `final` is for camera-ready
-% with author names. The shared task asks for names, affiliations and contact
-% details in the final paper, so this is set to `final`.
 \usepackage[final]{acl}
 
 \usepackage{times}
@@ -29,172 +18,508 @@
 \usepackage{amsmath}
 \usepackage{url}
 
-% -----------------------------------------------------------------------------
-% Set the team name ONCE here. It must be byte-identical across: the evaluator
-% Space registration, this paper's title, and the OpenReview `teamname` field.
-% The name is immutable once registered.
-% -----------------------------------------------------------------------------
+% Set the team name ONCE. Must be byte-identical to the evaluator Space
+% registration and the OpenReview `teamname` field. Immutable once registered.
 \newcommand{\teamname}{TEAMNAME}
 
 \title{\teamname{} at GroundLM 2026 Shared Tasks: \\
-       TODO Descriptive Paper Title}
+       Symbolic Scene Serialisation for View-Level Evidence Identification}
 
-% -----------------------------------------------------------------------------
-% Author block. Names, affiliations and contact information are REQUIRED in the
-% final system paper.
-% -----------------------------------------------------------------------------
 \author{
-  Mostafa Gaafar \\
-  TODO Affiliation \\
+  Mostafa Gaafar\thanks{\ Equal contribution.} \\
+  The American University \\ in Cairo, Egypt \\
   \texttt{mostafa21314@aucegypt.edu} \\
-  % \And Second Author \\ TODO Affiliation \\ \texttt{email} \\
+  \And
+  Omar Saqr\footnotemark[1] \\
+  The American University \\ in Cairo, Egypt \\
+  \texttt{Omar\_saqr@aucegypt.edu} \\
 }
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-TODO. State the task, the system, the main method, and the headline official
-test-set numbers. The organizers ask that the abstract summarize task, system,
-methods and key results, so name the metrics explicitly rather than saying
-``strong performance''.
+GoldenViewVQA asks a system to name which of six synchronised vehicle cameras
+carries the evidence for a question, and to answer that question. We submit a
+two-stage system built on a symbolic scene serialisation: a nuScenes-fine-tuned
+detector is run over all six views, detections are back-projected onto the
+ground plane, associated across cameras into objects carrying an explicit
+view-set, and rendered as text. A language model then predicts the supporting
+view and the answer from that text alone (System~1), or from the text together
+with the six raw images (System~2). On the development split, System~1 reaches
+$0.3816$ view macro-accuracy and System~2 reaches $0.6786$, against $0.1429$
+for an always-\textsc{cam\_front} baseline. A paired bootstrap shows the
+pixels contribute a significant gain to view attribution
+($+0.297$ macro, 95\% CI $[+0.078,+0.461]$) and \emph{no} gain to answering
+($-0.018$, CI $[-0.055,+0.000]$). Our most consequential finding is negative:
+answer accuracy is already $0.9455$ with no visual input at all, so the answer
+head is largely solvable from option phrasing and essentially all measurable
+signal in this benchmark lies in the view head.
 \end{abstract}
 
 % =============================================================================
 \section{Introduction}
 \label{sec:intro}
 
-TODO. What GoldenViewVQA asks for: given six synchronized nuScenes camera views
-and a multiple-choice question, identify the supporting camera view and select
-the answer \citep{wang2026doesanswercomefrom}. Images come from nuScenes
-\citep{caesar2020nuscenes} and are not redistributed by the task.
+GoldenViewVQA \citep{wang2026doesanswercomefrom} evaluates whether a
+multi-view model can say \emph{where} its evidence came from. Given six
+synchronised nuScenes \citep{caesar2020nuscenes} camera images and a
+four-option multiple-choice question, a system must predict the supporting
+camera view --- one of the six channels or \textsc{none\_of\_the\_above} ---
+and the answer. Submissions are ranked by joint accuracy, which requires both.
 
-TODO. What we built, why, and what we found. State contributions as a short
-list. Negative results and limitations are explicitly welcome, so do not
-overclaim.
+Two properties of the released data shape any reasonable approach. First,
+there is no training split: 55 labelled development records and 59 input-only
+test records, and nothing else. This is an inference-time task, not a training
+task. Second, the view labels are severely imbalanced. In development,
+\textsc{cam\_front} accounts for $38/55$ records while two classes hold a
+single example each. Because view macro-accuracy averages recall over the
+seven classes present in gold, each class carries roughly $14.3$ points, and a
+single flipped prediction on a singleton class moves the headline metric by
+that much.
+
+Our approach is deliberately not an end-to-end model. Serialising an
+object-level scene representation for a language model, rather than feeding it
+pixels, follows \citet{chen2024driving}, who fuse an object-level vector
+modality with an LLM for explainable driving, and \citet{mao2023gptdriver},
+who cast driving decisions as language modelling over a textual scene. Driving
+question answering has likewise been framed as structured reasoning over scene
+graphs \citep{sima2024drivelm}. What distinguishes GoldenViewVQA from these is
+that the label is the \emph{evidence source} rather than the decision, which
+makes per-object camera provenance --- not just object presence --- the
+quantity a serialisation must preserve.
+
+We therefore reuse the perception front-end of GeoDrive
+\citep{gaafar2025geodrive}, our prior cross-city driving system, and convert
+its structured output into text, extended so that each object carries the set
+of cameras it was seen in. The reasoning is that if every detected object is
+attributed to the specific cameras it appears in, then view selection reduces
+to grounding the question to an object and reading off its view-set. We test
+that reduction directly, and then test what raw pixels add on top of it.
+
+Our contributions are:
+
+\begin{itemize}
+  \item A symbolic serialisation of a surround-view scene that carries
+        explicit per-object view-sets, cross-camera identity, and negative
+        evidence, together with two systems built on it.
+  \item Measured evidence that the pixels help view attribution significantly
+        and do not help answering at all.
+  \item A negative result that we believe matters for the benchmark: answer
+        accuracy reaches $0.9455$ with no images, which implies the option
+        text leaks the answer and that joint accuracy is, in practice, a
+        view-accuracy metric.
+  \item An error analysis of the perception-to-text interface, including a
+        failure mode where a missed detection is serialised as confirmed
+        negative evidence.
+\end{itemize}
 
 % =============================================================================
 \section{Data and Preprocessing}
 \label{sec:data}
 
-TODO. The released splits and their sizes. Note that no training split exists,
-which shapes the whole approach.
+\paragraph{Released data.} The task provides \texttt{eval.jsonl} (55 labelled
+records), \texttt{eval\_inputs.jsonl} and \texttt{test\_inputs.jsonl} (59
+records, labels withheld), machine-readable input and submission schemas, and
+an official evaluator. Each record carries a question, four options, a
+\texttt{question\_group} in \{\textit{causality}, \textit{counterfactual},
+\textit{intent\_prediction}\}, a nuScenes \texttt{sample\_token}, and a
+\texttt{views} map from camera name to a nuScenes-relative image path.
+Development is causality-heavy ($27/55$) while test is more evenly spread and
+leans more on intent prediction ($20/59$), so the two splits are not
+distributionally interchangeable.
 
-TODO. Input processing: how images are resolved from the \texttt{views} field,
-what preprocessing runs before the model, and what the prompts look like. Quote
-or figure the actual prompt template.
+\paragraph{Images.} Images are not redistributed. We obtained nuScenes
+\texttt{v1.0-trainval} camera data under the nuScenes Terms of Use. All 114
+records resolve to 438 unique frames across 66 scenes; we verified $438/438$
+resolve locally before running anything. Only keyframe (\texttt{samples/})
+camera data is required --- no sweeps, lidar or radar --- which reduces the
+download substantially.
 
-TODO. External resources. The organizers require these to be disclosed
-clearly: every external dataset, pretrained model, tool, API, and any
-generated or synthetic data.
+\paragraph{No ground-truth annotations at inference.} The task permits
+inferring from the images but not reading nuScenes annotations. We therefore
+removed every annotation-derived component from the GeoDrive pipeline:
+3D bounding boxes, ego pose, the OpenStreetMap and GPS map lookups, and
+ground-truth future trajectories. The only nuScenes-derived quantity we retain
+is the camera rig geometry, which we treat as published hardware
+specification: across all 850 trainval logs, focal length varies by
+$\leq\!1.3\%$ and mount positions by under $6$\,cm, so we bake per-camera
+intrinsics and extrinsics into constants. Inference reads six JPEG files and
+touches no nuScenes table.
+
+\paragraph{No augmentation.} No data augmentation is used. There is no
+training stage in which it could act.
 
 % =============================================================================
 \section{System Architecture}
 \label{sec:system}
 
-TODO. The pipeline end to end. Report, per the organizers' checklist: models,
-any retrieval or grounding pipeline, prompting strategy, fine-tuning method if
-any, checkpoints, hyperparameters, frameworks, and compute resources.
+\subsection{Shared perception front-end}
 
-TODO. If several system variants were submitted, describe each and say which
-run produced the reported leaderboard numbers.
+The front-end converts six images into a list of objects, each annotated with
+the set of cameras it was detected in.
+
+\paragraph{Detection.} We run YOLOv8-m \citep{ultralytics2023yolov8},
+fine-tuned on nuScenes over seven agent classes (car, truck, bus, trailer,
+motorcycle, bicycle, pedestrian) as in GeoDrive
+\citep{gaafar2025geodrive}, independently over each of the six images. We set
+the confidence threshold to $0.15$, deliberately low: a missed object is
+unrecoverable in the serialised text, whereas a false positive can still be
+discounted downstream by a model that sees pixels.
+
+\paragraph{No tracking.} GeoDrive applies BoT-SORT within-camera tracking
+before cross-camera association. We removed it. The task input is a single
+timestamp, so temporal association yields nothing here; measured on the
+GeoDrive artefacts it provided no false-positive suppression (untracked boxes
+are retained with $\texttt{track\_id}=-1$), no interpolation, and non-zero
+velocity on only $1$--$3\%$ of agents. It also forced sequential whole-scene
+processing: serialising our 73 frames through the tracking pipeline would have
+required roughly 15{,}800 image passes instead of 438. Cross-camera identity is
+not tracking; it is the per-frame association step below, which we keep.
+
+\paragraph{Ground-plane projection.} For each detection we back-project the
+bottom-centre of the box through the fixed rig geometry onto the plane
+$z=0$ in the ego frame, giving a metric position. Rays that do not meet the
+plane in front of the camera are discarded.
+
+\paragraph{Cross-camera association.} Detections of the same class within
+$2.0$\,m in bird's-eye view --- one vehicle width, following
+\citet{gaafar2025geodrive} --- are merged into a single object. Critically,
+and unlike the GeoDrive implementation, a merged duplicate is \emph{absorbed}
+rather than discarded, so the camera it came from is recorded. The resulting
+\texttt{views} list is the quantity the task actually asks about; discarding it
+makes the full rendering below impossible.
+
+\subsection{Serialisation}
+
+Objects are rendered as text in two forms. The \textbf{full render} emits one
+section per camera in fixed order, objects sorted near-to-far, with one shared
+identifier per object across every section it appears in, explicit
+cross-references (\texttt{[same object also in CAM\_FRONT]}) generated from the
+view-set, and an explicit \texttt{no agents detected} line for empty cameras.
+The \textbf{isolated render} emits a single camera with cross-references
+stripped and identifiers local to that view.
+
+Bearing is reported in degrees, since azimuth is the well-conditioned axis of
+monocular geometry and is what view attribution depends on. Range is quantised
+into bands (near $<\!10$\,m, mid $10$--$25$\,m, far $>\!25$\,m) rather than
+reported as a point estimate, because flat-ground monocular range error grows
+quadratically with distance.
+
+\subsection{Submitted systems}
+
+\paragraph{System 1 (text only).} The full render, the question and the four
+options are given to a language model, which returns the predicted view and
+answer. No images are passed. This isolates what the symbolic layer
+contributes.
+
+\paragraph{System 2 (text and pixels).} The full render is presented first,
+followed by all six images, each labelled with its camera name. The prompt
+states that the detector cannot see traffic lights, signs, cones, road
+markings, lane geometry or barriers, and instructs the model to trust the
+pixels where text and pixels disagree.
+
+\paragraph{Released prompts.} Prompting has two layers, and we release both.
+The per-record prompt is generated by our sample builders from the serialised
+scene, the question and the options. The runner instructions --- how records are
+worked through, how text is weighed against pixels, and the output contract ---
+are released verbatim in the \texttt{prompts/} directory of our code, one file
+per system.
+
+\paragraph{Model and compute.} Both systems use Claude Opus~5 with extended
+thinking, held fixed across systems so that the System~2 versus System~1
+contrast measures the contribution of pixels rather than a change of model. No
+model is trained or fine-tuned by us; the only learned weights are the
+inherited detector checkpoint. Detection ran on a single consumer GPU in under
+two minutes for all 438 images. The 114 records were processed in shards of
+9--11 records to bound context per call.
 
 % =============================================================================
 \section{Experimental Setup}
 \label{sec:setup}
 
-TODO. Evaluation metrics as defined by the official evaluator:
-\texttt{view\_accuracy}, \texttt{view\_macro\_accuracy},
-\texttt{answer\_accuracy} and \texttt{joint\_accuracy}.
+We report the four official metrics: \texttt{view\_accuracy} (micro),
+\texttt{view\_macro\_accuracy} (mean per-view recall over classes present in
+gold), \texttt{answer\_accuracy}, and \texttt{joint\_accuracy}. All numbers
+come from the organizers' \texttt{evaluate.py}, imported rather than
+reimplemented, so our reported metrics cannot drift from the official
+definition.
 
-TODO. Baselines, seeds, and how uncertainty is estimated. With a development
-set this small, report intervals rather than bare point estimates.
+\paragraph{Baselines.} We include four label-only baselines that read neither
+text nor pixels: \textit{constant} (always \textsc{cam\_front}, answer A),
+\textit{majority} (most frequent gold view and answer), \textit{prior\_random}
+(sampled from the development label distribution), and
+\textit{uniform\_random}.
+
+\paragraph{Uncertainty.} With $n=55$, point estimates are close to
+meaningless, so we report 95\% percentile bootstrap intervals over questions
+($2000$ resamples). For system comparisons we use a \emph{paired} bootstrap
+that resamples the same questions for both systems, so per-question difficulty
+cancels. To calibrate how much of an observed difference is noise, we ran
+\textit{uniform\_random} across 20 seeds, changing nothing else: macro
+accuracy had mean $0.112$, standard deviation $0.069$, and range
+$[0.015,0.223]$. A $0.208$-wide spread arises from the random seed alone,
+which is wider than the gap between several of our baselines.
 
 % =============================================================================
 \section{Results}
 \label{sec:results}
 
-TODO. Official test-set results from the online evaluator, all reported
-leaderboard metrics, development-set results, comparisons between submitted
-runs, model variants, and ablations.
-
 \begin{table}[t]
-\centering
-\small
+\centering\small
 \begin{tabular}{lcccc}
 \toprule
-System & View & Macro & Answer & Joint \\
+System & View & Macro & Ans. & Joint \\
 \midrule
-TODO baseline      & -- & -- & -- & -- \\
-TODO system        & -- & -- & -- & -- \\
+\multicolumn{5}{l}{\textit{label-only baselines}} \\
+uniform\_random   & 0.146 & 0.223 & 0.327 & 0.091 \\
+prior\_random     & 0.491 & 0.102 & 0.309 & 0.200 \\
+constant          & 0.691 & 0.143 & 0.255 & 0.182 \\
+majority          & 0.691 & 0.143 & 0.309 & 0.200 \\
+\midrule
+\multicolumn{5}{l}{\textit{submitted systems}} \\
+System 1 (text)   & 0.709 & 0.382 & \textbf{0.945} & 0.709 \\
+System 2 (+pixels)& \textbf{0.873} & \textbf{0.679} & 0.927 & \textbf{0.855} \\
 \bottomrule
 \end{tabular}
-\caption{Development-set results. TODO replace with real numbers and state
-which split each row is measured on.}
+\caption{Development-set results ($n=55$), official evaluator. The
+\textit{uniform\_random} macro figure is a single seed and is not stable; see
+Section~\ref{sec:setup}.}
 \label{tab:dev}
 \end{table}
 
 \begin{table}[t]
-\centering
-\small
-\begin{tabular}{lcccc}
+\centering\small
+\begin{tabular}{lcc}
 \toprule
-Run & View & Macro & Answer & Joint \\
+Metric & $\Delta$ & 95\% CI \\
 \midrule
-TODO submitted run & -- & -- & -- & -- \\
+view\_accuracy       & $+0.164$ & $[+0.073,+0.273]$ \\
+view\_macro\_accuracy& $+0.297$ & $[+0.078,+0.461]$ \\
+answer\_accuracy     & $-0.018$ & $[-0.055,+0.000]$ \\
+joint\_accuracy      & $+0.146$ & $[+0.036,+0.255]$ \\
 \bottomrule
 \end{tabular}
-\caption{Official test-set results as reported by the GroundLM 2026 evaluator.
-TODO fill from the leaderboard, not from a local computation.}
-\label{tab:test}
+\caption{Paired bootstrap, System~2 minus System~1, 4000 resamples. View
+metrics improve significantly; answering does not improve.}
+\label{tab:paired}
 \end{table}
+
+Table~\ref{tab:dev} gives development results. System~2 improves view
+macro-accuracy from $0.143$ (constant baseline) to $0.679$, and joint accuracy
+from $0.182$ to $0.855$.
+
+Table~\ref{tab:paired} isolates the contribution of the pixels. The view
+metrics improve with intervals excluding zero. Answer accuracy does
+\emph{not} improve; its point estimate is negative and its interval has upper
+bound exactly $0.000$.
+
+\paragraph{The answer head is nearly saturated without vision.} System~1
+reaches $0.9455$ answer accuracy having seen no image. Taken with
+Table~\ref{tab:paired}, this indicates the four options are separable from
+text alone, and that the remaining headroom is essentially all in view
+attribution. Note that System~1's joint accuracy exactly equals its view
+accuracy: answer accuracy is high enough that joint is determined by the view
+head.
+
+\paragraph{Official test results.} \textbf{TODO: insert the official
+\texttt{test} numbers reported by the GroundLM 2026 evaluator Space for the
+submitted run, and state which system produced them.} We deliberately do not
+report locally computed test numbers here: test labels are withheld, so no
+local figure would be meaningful.
 
 % =============================================================================
 \section{Error Analysis}
 \label{sec:analysis}
 
-TODO. The organizers ask specifically for: representative failures, difficult
-examples, grounding errors, evidence-selection issues, and differences between
-development and test performance. A per-class and per-question-group breakdown
-belongs here, along with a confusion matrix over the seven view labels.
+\begin{table}[t]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+Gold view & $n$ & Sys.\ 1 & Sys.\ 2 \\
+\midrule
+\textsc{cam\_front}        & 38 & 0.921 & 1.000 \\
+\textsc{cam\_front\_left}  &  8 & 0.250 & 0.750 \\
+\textsc{cam\_front\_right} &  2 & 0.500 & 1.000 \\
+\textsc{cam\_back}         &  1 & 1.000 & 1.000 \\
+\textsc{cam\_back\_left}   &  2 & 0.000 & 0.000 \\
+\textsc{cam\_back\_right}  &  1 & 0.000 & 1.000 \\
+\textsc{none\_of\_the\_above} & 3 & 0.000 & 0.000 \\
+\bottomrule
+\end{tabular}
+\caption{Per-class view recall on development.}
+\label{tab:perclass}
+\end{table}
+
+\paragraph{Evidence-selection failures.} Table~\ref{tab:perclass} localises
+the remaining error. System~2 is perfect on four of seven classes. All residual
+loss is concentrated in \textsc{cam\_back\_left} ($0/2$) and
+\textsc{none\_of\_the\_above} ($0/3$), together $28.6$ macro points. Both
+systems predicted \textsc{none\_of\_the\_above} zero times in every run,
+despite prompts naming it as a valid and rare label. Both
+\textsc{cam\_back\_left} errors went to \textsc{cam\_front\_left}: a
+left-side front/rear confusion, not a left/right confusion.
+
+\paragraph{Attention collapse.} System~1 predicted \textsc{cam\_front} on
+$44/55$ development records against a gold count of $38$, and lost $6$ of $8$
+\textsc{cam\_front\_left} cases to it. Adding pixels reduced this collapse
+substantially, which is the main mechanism behind the macro gain.
+
+\paragraph{Class blindness dominates, not recall.} We initially expected
+detector recall to be the binding constraint. It is not. At threshold $0.15$
+without tracking, the front-end yields $29.3$ raw detections per frame and
+$22.0$ associated objects per frame on development, against roughly $27$
+annotated agents per frame in nuScenes; no frame came out empty. Instead the
+binding constraint is that a seven-class agent detector cannot represent the
+static infrastructure most questions turn on. Across our records, decisive
+evidence was repeatedly a lowered car-park gate arm, a stop sign, a traffic
+signal state, a splitter island, cones, chevron boards, a painted lane arrow or
+a crosswalk --- none of which exist in the detector's vocabulary. This is a
+representational ceiling, not a recall ceiling, and it explains why System~1
+plateaus well below System~2.
+
+\paragraph{Serialisation faults.} Inspecting the pixel-versus-text
+disagreements our System~2 runs reported surfaced three distinct faults at the
+perception-to-text interface, in descending order of severity.
+
+\textit{(i) False negative rendered as confirmed negative.} Several cameras
+were serialised as \texttt{no agents detected} while the image contained
+vehicles, in one case a truck bed filling the entire frame at close range.
+This is the most damaging fault available in our design, because the full
+render presents an empty camera as grounds to rule that view out. We suspect
+boxes whose bottom edge reaches the image border are dropped by the
+ground-plane projection; clamping and flagging the object as
+\textit{very near, range uncertain} would be preferable to silently emitting a
+negative.
+
+\textit{(ii) View-set misattribution.} In at least one case, objects fully
+visible in \textsc{cam\_front} were attributed only to
+\textsc{cam\_front\_left}, where they were clipped at the frame edge. The
+fixed $2.0$\,m association radius is likely too tight at range, where
+flat-ground projection error grows quadratically; a range-dependent radius is
+the natural fix. This fault matters more than a false positive because view
+attribution is precisely what is scored.
+
+\textit{(iii) Phantom objects.} Cars parked in multi-storey car parks, vehicles
+on the far side of a kerbed median, and a person seated on a grass embankment
+were all projected into the scene as road agents. Under System~2 the pixels
+arbitrate; under System~1 there is no confidence signal a text-only reader
+could use to discount them.
+
+\paragraph{Vocabulary mismatch.} The detector's seven class names do not align
+with the question vocabulary. One record asks about a ``bicycle'' that the
+detector labels a motorcycle; another concerns an SUV that the text calls a car
+and the option calls a van. Matching on class names is therefore unreliable
+even when the detection itself is correct.
+
+\paragraph{Irreducible ambiguity.} A recurring pattern is that the decisive
+object is clipped at the frame edge of one camera while fully visible in
+another, so more than one view is defensible while gold names one. We expect
+this to be a floor on achievable view accuracy rather than a fixable
+deficiency.
+
+\paragraph{Development versus test.} We expect test performance below
+Table~\ref{tab:dev}. Test leans more on \textit{intent\_prediction}
+($20/59$ versus $13/55$), which was System~2's weakest group on development
+(view $0.692$, versus $0.926$ on causality). Furthermore, System~2's predicted
+view distribution on test is more front-heavy than on development
+($47/59$ versus $41/55$), which is the direction that costs macro accuracy.
+\textsc{none\_of\_the\_above} was again never predicted, so any such test
+record is lost outright.
 
 % =============================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-TODO. What the results support, and what they do not. Future work.
+Serialising a surround-view scene into text with explicit per-object view-sets
+turns view-level evidence identification into a grounding-and-lookup problem
+and takes view macro-accuracy from $0.143$ to $0.382$ with no visual input.
+Supplying the raw images on top of that serialisation nearly doubles it again
+to $0.679$, and a paired bootstrap confirms the gain is in the view head only.
 
-% =============================================================================
-% Unnumbered under ACL rules and excluded from the main-content page limit.
-% A Limitations section is mandatory for ACL venues.
+The most useful thing we can report is negative. Answer accuracy of $0.9455$
+without any image indicates that the answer options are largely separable from
+text alone, and that joint accuracy therefore behaves as a view metric. Future
+work on this benchmark should concentrate on view attribution, and we would
+encourage the organizers to publish a question-and-options-only baseline so
+that the answer-side leak is quantified for all participants.
+
+For our own system, the clearest next steps follow from
+Section~\ref{sec:analysis}: never serialise an unverified negative, make the
+association radius range-dependent, and add an explicit abstention rule so that
+\textsc{none\_of\_the\_above} becomes reachable rather than structurally
+impossible.
+
 % =============================================================================
 \section*{Limitations}
 
-TODO. Known limitations: dataset size and the resulting statistical
-uncertainty, perception-stack failure modes, any component that was tuned on
-the development set, and anything that would not transfer to a different
-distribution.
+Our evaluation rests on 55 labelled records. Bootstrap intervals are
+correspondingly wide --- $0.306$ for System~2 macro accuracy --- and two view
+classes contain a single example each, so per-class recalls for those classes
+are one-bit measurements. We showed that changing only a random seed moves
+macro accuracy over a $0.208$ range; readers should not treat differences
+smaller than that as meaningful.
+
+We report a single run per system rather than a distribution over runs, so
+sampling variability in the model's own outputs is not quantified. We did not
+implement the information-gain formulation we had designed for abstention, so
+\textsc{none\_of\_the\_above} remains unreachable in both submitted systems.
+The rig geometry we hard-code is nuScenes-specific and would not transfer to
+another sensor platform without re-derivation. The perception front-end is
+monocular and assumes flat ground, which is the direct cause of the
+phantom-object and misattribution faults documented above.
+
+Our systems consume exactly the six images of the annotated keyframe and
+nothing else. Because each record identifies a nuScenes sample within a
+continuous scene, temporally adjacent frames are available, and a
+similarity-based retrieval step --- gathering nearby frames whose scene content
+is close to the queried keyframe and serialising them jointly --- would give
+substantially richer context than a single instant. This would particularly
+help the \textit{intent\_prediction} group, our weakest at $0.692$ view
+accuracy, where a pedestrian's direction of travel or a vehicle's manoeuvre is
+far more legible over a short window than in one frame. It would also supply
+the motion cues our single-frame design discards by construction. We did not
+pursue this because it raises a question about what counts as permissible
+input, which we would want the organizers to settle first.
+
+Both submitted systems depend on a cloud-hosted multimodal model. Beyond cost
+and reproducibility concerns --- a hosted model may be updated or withdrawn,
+so our exact numbers may not be reproducible later --- the latency is
+disqualifying for the application domain this benchmark is drawn from. Each
+System~2 record requires transmitting six full-resolution images and waiting on
+a remote inference call, which is orders of magnitude away from the budget of
+an on-vehicle perception loop. A safety-relevant evidence-attribution component
+would have to run locally. Investigating smaller open-weight vision-language
+models, and distilling the behaviour of the larger model into one, is the more
+practical direction, and it is the direction our prior work took for its
+reasoning module \citep{gaafar2025geodrive}. We expect a meaningful accuracy
+cost, and quantifying that trade-off is exactly what makes the experiment
+worth running.
 
 \section*{Ethics Statement}
 
-TODO. Responsible-use considerations for grounded multimodal systems. Note the
-nuScenes Terms of Use, that no images are redistributed, and any risk from
-deploying evidence-attribution claims in a safety-critical setting.
+Images were obtained from the official nuScenes distribution under its Terms
+of Use. No images are redistributed with our code or in this paper, consistent
+with the shared task's own policy. We use no ground-truth nuScenes annotations
+at inference, and no personal data beyond what the public nuScenes release
+already contains; pedestrians appear in the source imagery as distributed by
+nuScenes, and we perform no identification of individuals.
 
-\section*{Acknowledgments}
+Our system emits claims about which camera provides evidence for a driving
+judgement. Such claims could invite unwarranted confidence if deployed in a
+safety-critical setting. The failure modes in Section~\ref{sec:analysis} are
+directly relevant: a camera can be serialised as empty when it is not, and an
+object can be attributed to the wrong view. A system that names its evidence
+source is not thereby a system whose evidence source is correct, and it should
+not be treated as a safety argument without independent verification.
 
-TODO or delete.
+All external resources are disclosed in Section~\ref{sec:data} and
+Section~\ref{sec:system}: the nuScenes dataset, a YOLOv8-m checkpoint
+fine-tuned on nuScenes from our prior work, and a commercial multimodal
+language model accessed through its provider. No synthetic or generated
+training data was used, and no model was trained for this submission.
 
 % =============================================================================
-% acl.sty already issues \bibliographystyle{acl_natbib}; adding it here too
-% makes bibtex abort with "Illegal, another \bibstyle command".
 \bibliography{refs}
-
-% =============================================================================
-\appendix
-\section{Appendix}
-\label{sec:appendix}
-
-TODO or delete. Appendices do not count toward the main-content page limit.
 
 \end{document}

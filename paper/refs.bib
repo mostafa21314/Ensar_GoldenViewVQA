@@ -49,3 +49,62 @@
 
 % TODO: add an entry for the multimodal model you submitted with, and for any
 % other external dataset, pretrained checkpoint, API or synthetic data used.
+
+% ---------------------------------------------------------------------------
+% Our prior work. The perception front-end reused here (nuScenes-fine-tuned
+% YOLOv8-m, cross-camera BEV association at 2.0 m) originates in this system.
+% ---------------------------------------------------------------------------
+@inproceedings{gaafar2025geodrive,
+  author    = {Gaafar, Mostafa and Elaswad, Ali and Rizk, Hamada and
+               Youssef, Moustafa},
+  title     = {GeoDrive: Cross-City Autonomous Driving through Meta-Learning
+               and LLMs},
+  year      = {2025},
+  isbn      = {9798400720864},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3748636.3766536},
+  doi       = {10.1145/3748636.3766536},
+  booktitle = {Proceedings of the 33rd ACM International Conference on
+               Advances in Geographic Information Systems},
+  pages     = {1292--1293},
+  numpages  = {2},
+  keywords  = {autonomous driving, meta-learning, openstreetmap, LLMs},
+  location  = {Minneapolis, MN, USA},
+  series    = {SIGSPATIAL '25}
+}
+
+% ---------------------------------------------------------------------------
+% Closest prior art. Chen et al. is the direct antecedent of our System 1:
+% object-level structure serialised for a language model rather than pixels.
+% ---------------------------------------------------------------------------
+@inproceedings{chen2024driving,
+  author    = {Chen, Long and Sinavski, Oleg and H{\"u}nermann, Jan and
+               Karnsund, Alice and Willmott, Andrew James and Birch, Danny and
+               Maund, Daniel and Shotton, Jamie},
+  title     = {Driving with {LLM}s: Fusing Object-Level Vector Modality for
+               Explainable Autonomous Driving},
+  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+  pages     = {14093--14100},
+  year      = {2024}
+}
+
+@inproceedings{sima2024drivelm,
+  author    = {Sima, Chonghao and Renz, Katrin and Chitta, Kashyap and
+               Chen, Li and Zhang, Hanxue and Xie, Chengen and
+               Bei{\ss}wenger, Jens and Luo, Ping and Geiger, Andreas and
+               Li, Hongyang},
+  title     = {{DriveLM}: Driving with Graph Visual Question Answering},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  pages     = {256--274},
+  year      = {2024},
+  publisher = {Springer}
+}
+
+@article{mao2023gptdriver,
+  author  = {Mao, Jiageng and Qian, Yuxi and Ye, Junjie and Zhao, Hang and
+             Wang, Yue},
+  title   = {{GPT-Driver}: Learning to Drive with {GPT}},
+  journal = {arXiv preprint arXiv:2310.01415},
+  year    = {2023}
+}
