@@ -270,7 +270,7 @@ which is wider than the gap between several of our baselines.
 
 \begin{table}[t]
 \centering\small
-\begin{tabular}{lcccc}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
 System & View & Macro & Ans. & Joint \\
 \midrule
@@ -298,7 +298,7 @@ Section~\ref{sec:setup}.}
 
 \begin{table}[t]
 \centering\small
-\begin{tabular}{lcc}
+\begin{tabular}{@{}lcc@{}}
 \toprule
 Metric & $\Delta$ & 95\% CI \\
 \midrule
@@ -337,13 +337,13 @@ macro-accuracy.
 
 \begin{table}[t]
 \centering\small
-\begin{tabular}{lcccc}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-Submitted run & View & Macro & Ans. & Joint \\
+Submitted run (System 2) & View & Macro & Ans. & Joint \\
 \midrule
-constant baseline & 0.780 & 0.167 & 0.237 & 0.203 \\
-System 2, GPT-5.6 Sol & 0.780 & 0.562 & \textbf{0.932} & 0.763 \\
-System 2, Claude Opus 5 & \textbf{0.831} & \textbf{0.652} & 0.915 & \textbf{0.780} \\
+Constant baseline & 0.780 & 0.167 & 0.237 & 0.203 \\
+GPT-5.6 Sol & 0.780 & 0.562 & \textbf{0.932} & 0.763 \\
+Claude Opus 5 & \textbf{0.831} & \textbf{0.652} & 0.915 & \textbf{0.780} \\
 \bottomrule
 \end{tabular}
 \caption{Official \texttt{test} results ($n=59$) from the GroundLM 2026
@@ -376,7 +376,7 @@ and the macro ceiling is correspondingly higher than we assumed.
 
 \begin{table}[t]
 \centering\small
-\begin{tabular}{lccc}
+\begin{tabular}{@{}lccc@{}}
 \toprule
 Gold view & $n$ & Sys.\ 1 & Sys.\ 2 \\
 \midrule
