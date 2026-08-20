@@ -1,10 +1,8 @@
 # Local nuScenes root holding samples/CAM_*.
-# Overridden by the NUSCENES_ROOT env var.
-# On the SSD: the external drive is HFS+ and the kernel mounts it read-only.
-# This root already carries the v1.0-trainval metadata and maps.
-nuscenes_root: /home/g6/nuscenes
+# Override this portable default with the NUSCENES_ROOT environment variable.
+nuscenes_root: data/nuscenes
 
-# GoldenViewVQA dataset checkout (gitignored, see external/.goldenview-commit)
+# GoldenViewVQA dataset checkout (gitignored; revision pinned in DATASET_COMMIT).
 dataset_dir: external/goldenview
 
 # Local SSD cache holding only the 438 images the benchmark references (~50 MB).

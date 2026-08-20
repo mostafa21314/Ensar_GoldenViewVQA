@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+perception = ["ultralytics>=8.4,<9"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/goldenview"]

@@ -18,7 +18,8 @@ sys.path.insert(0, str(REPO / "src"))
 
 from goldenview import ANSWER_IDS, VIEW_LABELS, load_split  # noqa: E402
 
-FIELDS = {"question_id", "predicted_view", "predicted_answer_id"}
+FIELDS = ("question_id", "predicted_view", "predicted_answer_id")
+FIELD_SET = set(FIELDS)
 
 
 def main() -> int:
@@ -43,7 +44,7 @@ def main() -> int:
             row = json.loads(line)
             n += 1
             qid = row.get("question_id")
-            if set(row) != FIELDS:
+            if set(row) != FIELD_SET:
                 problems.append(f"{path}: {qid} has fields {sorted(row)}")
             if row.get("predicted_view") not in VIEW_LABELS:
                 problems.append(f"{path}: {qid} bad view {row.get('predicted_view')!r}")
@@ -51,7 +52,7 @@ def main() -> int:
                 problems.append(f"{path}: {qid} bad answer {row.get('predicted_answer_id')!r}")
             if qid in rows:
                 problems.append(f"duplicate question_id across shards: {qid}")
-            rows[qid] = {k: row[k] for k in FIELDS if k in row}
+            rows[qid] = {key: row[key] for key in FIELDS if key in row}
         print(f"  {path}: {n} rows")
 
     expected = [r.question_id for r in load_split(args.split)]

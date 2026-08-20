@@ -1,16 +1,65 @@
-external/
+# Python caches, test output, and build products
 __pycache__/
+*.py[cod]
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Virtual environments and local secrets
 .venv/
 venv/
-.ipynb_checkpoints/
-predictions/
-data/image_cache/
-data/prompts_*.jsonl
-data/shard_*.jsonl
-data/samples_*.json
-data/detections.json
-private/
-.DS_Store
 .env
+.env.*
+private/
+
+# IDE, notebook, and local agent state
+.idea/
+.vscode/
+.ipynb_checkpoints/
+.agents/
+.codex/
+.DS_Store
+
+# Third-party checkouts and licensed nuScenes data
+external/
+data/image_cache/
+data/nuscenes/
+
+# Generated perception and prompt artifacts
+data/detections*.json
+data/prompts_*.jsonl
+data/samples_*.json
+data/shard_*.jsonl
+
+# Model outputs and heavyweight checkpoints
+predictions/
+checkpoints/
+weights/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# Local planning notes and downloaded references
 docs/
+/ref_paper.pdf
+
+# LaTeX build artifacts (paper/)
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.spl
+*.brf
+paper/main.pdf

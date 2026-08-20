@@ -16,6 +16,18 @@ from .rig import RIG
 
 DEDUP_RADIUS_M = 2.0
 
+# Only neighbouring cameras have overlapping fields of view. Association across
+# any other pair is physically implausible and usually comes from an unstable
+# far-range ground-plane projection.
+OVERLAPPING_CAMERA_PAIRS = frozenset({
+    frozenset(("CAM_FRONT", "CAM_FRONT_LEFT")),
+    frozenset(("CAM_FRONT", "CAM_FRONT_RIGHT")),
+    frozenset(("CAM_FRONT_LEFT", "CAM_BACK_LEFT")),
+    frozenset(("CAM_BACK_LEFT", "CAM_BACK")),
+    frozenset(("CAM_BACK", "CAM_BACK_RIGHT")),
+    frozenset(("CAM_BACK_RIGHT", "CAM_FRONT_RIGHT")),
+})
+
 # Monocular range from a flat-ground assumption degrades quadratically, so range
 # is reported as a band. Bearing is kept precise: azimuth is the accurate axis of
 # monocular geometry and it is what view attribution depends on.
@@ -123,7 +135,18 @@ class SceneObject:
         }
 
 
-def associate(detections: dict[str, list[dict]], radius: float = DEDUP_RADIUS_M) -> list[SceneObject]:
+def cameras_overlap(camera_a: str, camera_b: str) -> bool:
+    """Whether two cameras are neighbours on the six-camera rig."""
+    return frozenset((camera_a, camera_b)) in OVERLAPPING_CAMERA_PAIRS
+
+
+def associate(
+    detections: dict[str, list[dict]],
+    radius: float = DEDUP_RADIUS_M,
+    *,
+    prevent_same_camera_merge: bool = False,
+    restrict_to_overlapping_cameras: bool = False,
+) -> list[SceneObject]:
     """Group per-camera detections into objects carrying a view-set.
 
     A detection joins an existing object when it is the same class and within
@@ -147,6 +170,12 @@ def associate(detections: dict[str, list[dict]], radius: float = DEDUP_RADIUS_M)
         match = None
         for obj in objects:
             if obj.class_name != det["class_name"]:
+                continue
+            if prevent_same_camera_merge and camera in obj.views:
+                continue
+            if restrict_to_overlapping_cameras and not any(
+                cameras_overlap(camera, existing) for existing in obj.views
+            ):
                 continue
             if math.hypot(gx - obj.x, gy - obj.y) < radius:
                 match = obj

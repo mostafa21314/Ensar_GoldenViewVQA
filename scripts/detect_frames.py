@@ -6,14 +6,15 @@ association buys nothing here. Confidence is deliberately low, because a missed
 object is unrecoverable in the serialised text while a false positive can still
 be discounted by a downstream model that sees pixels.
 
-Needs the GeoDrive venv:
-  /home/g6/GeoDrive/AVs/venv/bin/python scripts/detect_frames.py
+Requires Ultralytics and a fine-tuned detector checkpoint:
+  python3 scripts/detect_frames.py --weights /path/to/best.pt
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,20 +23,31 @@ sys.path.insert(0, str(REPO / "src"))
 
 from goldenview import VIEWS, image_paths, load_split  # noqa: E402
 
-WEIGHTS = Path("/home/g6/GeoDrive/AVs/perception/runs/detect/runs/nuscenes/weights/best.pt")
 CLASS_NAMES = ["car", "truck", "bus", "trailer", "motorcycle", "bicycle", "pedestrian"]
 SPLITS = ("eval", "test")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--weights", type=Path, default=WEIGHTS)
+    parser.add_argument(
+        "--weights",
+        type=Path,
+        default=Path(os.environ["GOLDENVIEW_DETECTOR_WEIGHTS"])
+        if os.environ.get("GOLDENVIEW_DETECTOR_WEIGHTS")
+        else None,
+        help="fine-tuned YOLOv8 checkpoint (or set GOLDENVIEW_DETECTOR_WEIGHTS)",
+    )
     parser.add_argument("--conf", type=float, default=0.15)
     parser.add_argument("--iou", type=float, default=0.7)
     parser.add_argument("--batch", type=int, default=12)
     parser.add_argument("--device", default="0")
     parser.add_argument("--out", type=Path, default=REPO / "data" / "detections.json")
     args = parser.parse_args()
+
+    if args.weights is None:
+        parser.error("--weights is required (or set GOLDENVIEW_DETECTOR_WEIGHTS)")
+    if not args.weights.is_file():
+        parser.error(f"detector checkpoint does not exist: {args.weights}")
 
     from ultralytics import YOLO
 

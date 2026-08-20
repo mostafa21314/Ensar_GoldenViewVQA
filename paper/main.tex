@@ -1,0 +1,200 @@
+% =============================================================================
+% GroundLM 2026 Shared Tasks - GoldenViewVQA system description paper
+%
+% Built on the official ACL style files (acl-org/acl-style-files), copied here
+% UNMODIFIED. Do not change margins, spacing, fonts or page dimensions: the
+% organizers check for this.
+%
+% Length: 4-8 pages of main content. References may spill past that. The
+% Limitations and Ethics sections are unnumbered and do not count toward the
+% main-content limit under ACL rules.
+%
+% Compile:  pdflatex main -> bibtex main -> pdflatex main -> pdflatex main
+% =============================================================================
+\documentclass[11pt]{article}
+
+% `review` shows line numbers for anonymous review; `final` is for camera-ready
+% with author names. The shared task asks for names, affiliations and contact
+% details in the final paper, so this is set to `final`.
+\usepackage[final]{acl}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{url}
+
+% -----------------------------------------------------------------------------
+% Set the team name ONCE here. It must be byte-identical across: the evaluator
+% Space registration, this paper's title, and the OpenReview `teamname` field.
+% The name is immutable once registered.
+% -----------------------------------------------------------------------------
+\newcommand{\teamname}{TEAMNAME}
+
+\title{\teamname{} at GroundLM 2026 Shared Tasks: \\
+       TODO Descriptive Paper Title}
+
+% -----------------------------------------------------------------------------
+% Author block. Names, affiliations and contact information are REQUIRED in the
+% final system paper.
+% -----------------------------------------------------------------------------
+\author{
+  Mostafa Gaafar \\
+  TODO Affiliation \\
+  \texttt{mostafa21314@aucegypt.edu} \\
+  % \And Second Author \\ TODO Affiliation \\ \texttt{email} \\
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+TODO. State the task, the system, the main method, and the headline official
+test-set numbers. The organizers ask that the abstract summarize task, system,
+methods and key results, so name the metrics explicitly rather than saying
+``strong performance''.
+\end{abstract}
+
+% =============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+TODO. What GoldenViewVQA asks for: given six synchronized nuScenes camera views
+and a multiple-choice question, identify the supporting camera view and select
+the answer \citep{wang2026doesanswercomefrom}. Images come from nuScenes
+\citep{caesar2020nuscenes} and are not redistributed by the task.
+
+TODO. What we built, why, and what we found. State contributions as a short
+list. Negative results and limitations are explicitly welcome, so do not
+overclaim.
+
+% =============================================================================
+\section{Data and Preprocessing}
+\label{sec:data}
+
+TODO. The released splits and their sizes. Note that no training split exists,
+which shapes the whole approach.
+
+TODO. Input processing: how images are resolved from the \texttt{views} field,
+what preprocessing runs before the model, and what the prompts look like. Quote
+or figure the actual prompt template.
+
+TODO. External resources. The organizers require these to be disclosed
+clearly: every external dataset, pretrained model, tool, API, and any
+generated or synthetic data.
+
+% =============================================================================
+\section{System Architecture}
+\label{sec:system}
+
+TODO. The pipeline end to end. Report, per the organizers' checklist: models,
+any retrieval or grounding pipeline, prompting strategy, fine-tuning method if
+any, checkpoints, hyperparameters, frameworks, and compute resources.
+
+TODO. If several system variants were submitted, describe each and say which
+run produced the reported leaderboard numbers.
+
+% =============================================================================
+\section{Experimental Setup}
+\label{sec:setup}
+
+TODO. Evaluation metrics as defined by the official evaluator:
+\texttt{view\_accuracy}, \texttt{view\_macro\_accuracy},
+\texttt{answer\_accuracy} and \texttt{joint\_accuracy}.
+
+TODO. Baselines, seeds, and how uncertainty is estimated. With a development
+set this small, report intervals rather than bare point estimates.
+
+% =============================================================================
+\section{Results}
+\label{sec:results}
+
+TODO. Official test-set results from the online evaluator, all reported
+leaderboard metrics, development-set results, comparisons between submitted
+runs, model variants, and ablations.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+System & View & Macro & Answer & Joint \\
+\midrule
+TODO baseline      & -- & -- & -- & -- \\
+TODO system        & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Development-set results. TODO replace with real numbers and state
+which split each row is measured on.}
+\label{tab:dev}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Run & View & Macro & Answer & Joint \\
+\midrule
+TODO submitted run & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Official test-set results as reported by the GroundLM 2026 evaluator.
+TODO fill from the leaderboard, not from a local computation.}
+\label{tab:test}
+\end{table}
+
+% =============================================================================
+\section{Error Analysis}
+\label{sec:analysis}
+
+TODO. The organizers ask specifically for: representative failures, difficult
+examples, grounding errors, evidence-selection issues, and differences between
+development and test performance. A per-class and per-question-group breakdown
+belongs here, along with a confusion matrix over the seven view labels.
+
+% =============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+TODO. What the results support, and what they do not. Future work.
+
+% =============================================================================
+% Unnumbered under ACL rules and excluded from the main-content page limit.
+% A Limitations section is mandatory for ACL venues.
+% =============================================================================
+\section*{Limitations}
+
+TODO. Known limitations: dataset size and the resulting statistical
+uncertainty, perception-stack failure modes, any component that was tuned on
+the development set, and anything that would not transfer to a different
+distribution.
+
+\section*{Ethics Statement}
+
+TODO. Responsible-use considerations for grounded multimodal systems. Note the
+nuScenes Terms of Use, that no images are redistributed, and any risk from
+deploying evidence-attribution claims in a safety-critical setting.
+
+\section*{Acknowledgments}
+
+TODO or delete.
+
+% =============================================================================
+% acl.sty already issues \bibliographystyle{acl_natbib}; adding it here too
+% makes bibtex abort with "Illegal, another \bibstyle command".
+\bibliography{refs}
+
+% =============================================================================
+\appendix
+\section{Appendix}
+\label{sec:appendix}
+
+TODO or delete. Appendices do not count toward the main-content page limit.
+
+\end{document}

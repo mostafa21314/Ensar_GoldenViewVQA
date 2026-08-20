@@ -16,6 +16,7 @@ from .bev import SceneObject
 from .rig import CAMERAS
 
 BAND_TEXT = {"near": "near (<10 m)", "mid": "mid (10-25 m)", "far": "far (>25 m)"}
+FAR_MIN_CONFIDENCE_V2 = 0.35
 
 
 def _side(bearing: float) -> str:
@@ -95,4 +96,60 @@ def isolated_render(objects: list[SceneObject], camera: str) -> str:
                 confidence=obj.confidence,
             )
             lines.append(_object_line(local, camera, cross_ref=False))
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _confidence_band(confidence: float) -> str:
+    if confidence >= 0.65:
+        return "high"
+    if confidence >= 0.35:
+        return "medium"
+    return "tentative"
+
+
+def _object_line_v2(obj: SceneObject, camera: str) -> str:
+    parts = [
+        f"  - {obj.obj_id}: {obj.class_name}",
+        f"bearing {_side(obj.bearing)}",
+        f"range {BAND_TEXT[obj.band]}",
+        f"detector confidence {_confidence_band(obj.confidence)}",
+    ]
+    line = ", ".join(parts)
+    others = [view for view in obj.views if view != camera]
+    if others:
+        line += f" [tentatively associated with the same object in {', '.join(others)}]"
+    return line
+
+
+def full_render_v2(objects: list[SceneObject]) -> str:
+    """Less noisy full render for System 2 v2.
+
+    Far detections below 0.35 confidence are omitted because both the detector
+    and flat-ground range estimate are least reliable there. Near and mid-range
+    tentative detections remain visible and are explicitly marked.
+    """
+    retained = [
+        obj for obj in objects
+        if not (obj.band == "far" and obj.confidence < FAR_MIN_CONFIDENCE_V2)
+    ]
+    omitted = len(objects) - len(retained)
+    lines = [
+        "APPROXIMATE SURROUND-VIEW DETECTOR SUMMARY",
+        "Ego vehicle at origin. Bearing is measured from straight ahead;",
+        "left is positive, right is negative. Counts, range bands, and",
+        "cross-camera associations are approximate; pixels take precedence.",
+        "",
+    ]
+    for camera in CAMERAS:
+        here = [obj for obj in retained if camera in obj.views]
+        lines.append(f"{camera}:")
+        if not here:
+            lines.append("  - detector found no retained agent detections")
+        else:
+            for obj in sorted(here, key=lambda item: item.dist):
+                lines.append(_object_line_v2(obj, camera))
+        lines.append("")
+
+    lines.append(f"RETAINED DISTINCT OBJECT HYPOTHESES: {len(retained)}")
+    lines.append(f"OMITTED TENTATIVE FAR DETECTIONS: {omitted}")
     return "\n".join(lines).rstrip() + "\n"
