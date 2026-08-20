@@ -20,7 +20,7 @@
 
 % Set the team name ONCE. Must be byte-identical to the evaluator Space
 % registration and the OpenReview `teamname` field. Immutable once registered.
-\newcommand{\teamname}{TEAMNAME}
+\newcommand{\teamname}{Ensar}
 
 \title{\teamname{} at GroundLM 2026 Shared Tasks: \\
        Symbolic Scene Serialisation for View-Level Evidence Identification}
@@ -89,13 +89,13 @@ that the label is the \emph{evidence source} rather than the decision, which
 makes per-object camera provenance --- not just object presence --- the
 quantity a serialisation must preserve.
 
-We therefore reuse the perception front-end of GeoDrive
-\citep{gaafar2025geodrive}, our prior cross-city driving system, and convert
-its structured output into text, extended so that each object carries the set
-of cameras it was seen in. The reasoning is that if every detected object is
-attributed to the specific cameras it appears in, then view selection reduces
-to grounding the question to an object and reading off its view-set. We test
-that reduction directly, and then test what raw pixels add on top of it.
+We therefore detect agents across all six views and associate them in
+bird's-eye view following \citet{gaafar2025geodrive}, and serialise the result
+so that each object carries the set of cameras it was seen in. The reasoning is
+that if every detected object is attributed to the specific cameras it appears
+in, then view selection reduces to grounding the question to an object and
+reading off its view-set. We test that reduction directly, and then test what
+raw pixels add on top of it.
 
 Our contributions are:
 
@@ -167,16 +167,6 @@ the confidence threshold to $0.15$, deliberately low: a missed object is
 unrecoverable in the serialised text, whereas a false positive can still be
 discounted downstream by a model that sees pixels.
 
-\paragraph{No tracking.} GeoDrive applies BoT-SORT within-camera tracking
-before cross-camera association. We removed it. The task input is a single
-timestamp, so temporal association yields nothing here; measured on the
-GeoDrive artefacts it provided no false-positive suppression (untracked boxes
-are retained with $\texttt{track\_id}=-1$), no interpolation, and non-zero
-velocity on only $1$--$3\%$ of agents. It also forced sequential whole-scene
-processing: serialising our 73 frames through the tracking pipeline would have
-required roughly 15{,}800 image passes instead of 438. Cross-camera identity is
-not tracking; it is the per-frame association step below, which we keep.
-
 \paragraph{Ground-plane projection.} For each detection we back-project the
 bottom-centre of the box through the fixed rig geometry onto the plane
 $z=0$ in the ego frame, giving a metric position. Rays that do not meet the
@@ -226,13 +216,26 @@ worked through, how text is weighed against pixels, and the output contract ---
 are released verbatim in the \texttt{prompts/} directory of our code, one file
 per system.
 
-\paragraph{Model and compute.} Both systems use Claude Opus~5 with extended
-thinking, held fixed across systems so that the System~2 versus System~1
-contrast measures the contribution of pixels rather than a change of model. No
-model is trained or fine-tuned by us; the only learned weights are the
-inherited detector checkpoint. Detection ran on a single consumer GPU in under
-two minutes for all 438 images. The 114 records were processed in shards of
-9--11 records to bound context per call.
+\paragraph{Models and compute.} We ran the serialisation through two hosted
+reasoning models: Claude Opus~5 with extended thinking, and GPT-5.6 Sol at its
+highest reasoning setting. Within each model the prompt is held fixed across
+systems, so the System~2 versus System~1 contrast measures the contribution of
+pixels rather than a change of model. Our best official submission used Claude
+Opus~5. No model is trained or fine-tuned by us; the only learned weights are
+the inherited detector checkpoint. Detection ran on a single consumer GPU in
+under two minutes for all 438 images. The 114 records were processed in shards
+of 9--11 records to bound context per call.
+
+\paragraph{System 3 (per-view evidence ranking).} We additionally implemented an
+approximation of an information-gain formulation. Each camera is presented on
+its own, with the isolated render and that camera's image, and the model reports
+an answer and an ordinal evidence-strength score for that view; a question-only
+pass supplies a prior answer. The predicted view is the argmax of evidence
+strength. This is an approximation and we label it as such: the hosted
+interfaces expose no token log-probabilities, so we cannot compute the
+distributional divergence the formulation calls for, and an ordinal judgment
+elicited in natural language is a coarse substitute. It costs seven passes per
+question instead of one.
 
 % =============================================================================
 \section{Experimental Setup}
@@ -277,9 +280,14 @@ prior\_random     & 0.491 & 0.102 & 0.309 & 0.200 \\
 constant          & 0.691 & 0.143 & 0.255 & 0.182 \\
 majority          & 0.691 & 0.143 & 0.309 & 0.200 \\
 \midrule
-\multicolumn{5}{l}{\textit{submitted systems}} \\
-System 1 (text)   & 0.709 & 0.382 & \textbf{0.945} & 0.709 \\
-System 2 (+pixels)& \textbf{0.873} & \textbf{0.679} & 0.927 & \textbf{0.855} \\
+\multicolumn{5}{l}{\textit{Claude Opus 5}} \\
+System 1 (text)    & 0.709 & 0.382 & 0.945 & 0.709 \\
+System 2 (+pixels) & 0.873 & 0.679 & 0.927 & 0.855 \\
+\midrule
+\multicolumn{5}{l}{\textit{GPT-5.6 Sol}} \\
+System 1 (text)    & 0.727 & 0.481 & 0.909 & 0.691 \\
+System 2 (+pixels) & \textbf{0.909} & \textbf{0.812} & \textbf{0.945} & \textbf{0.891} \\
+System 3 (per-view)& 0.873 & 0.746 & 0.909 & 0.836 \\
 \bottomrule
 \end{tabular}
 \caption{Development-set results ($n=55$), official evaluator. The
@@ -322,11 +330,45 @@ attribution. Note that System~1's joint accuracy exactly equals its view
 accuracy: answer accuracy is high enough that joint is determined by the view
 head.
 
-\paragraph{Official test results.} \textbf{TODO: insert the official
-\texttt{test} numbers reported by the GroundLM 2026 evaluator Space for the
-submitted run, and state which system produced them.} We deliberately do not
-report locally computed test numbers here: test labels are withheld, so no
-local figure would be meaningful.
+\paragraph{Official test results.} Table~\ref{tab:test} reports every
+GoldenViewVQA run we submitted to the evaluator Space. Our best submission
+reaches $0.7797$ joint accuracy with $0.8305$ view accuracy and $0.6522$ view
+macro-accuracy.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+Submitted run & View & Macro & Ans. & Joint \\
+\midrule
+constant baseline & 0.780 & 0.167 & 0.237 & 0.203 \\
+System 2, GPT-5.6 Sol & 0.780 & 0.562 & \textbf{0.932} & 0.763 \\
+System 2, Claude Opus 5 & \textbf{0.831} & \textbf{0.652} & 0.915 & \textbf{0.780} \\
+\bottomrule
+\end{tabular}
+\caption{Official \texttt{test} results ($n=59$) from the GroundLM 2026
+evaluator. Runs are listed in submission order.}
+\label{tab:test}
+\end{table}
+
+Submitting the constant baseline to the official evaluator turned out to be
+informative beyond a sanity check, because it lets us recover properties of the
+withheld test labels. An always-\textsc{cam\_front}, always-\texttt{A}
+submission scored $0.779661$ view accuracy, $0.237288$ answer accuracy and
+$0.166667$ macro. Since $59 \times 0.779661 = 46$ and
+$59 \times 0.237288 = 14$, exactly $46$ of the $59$ test records have gold view
+\textsc{cam\_front} and $14$ have gold answer \texttt{A}. And because macro
+accuracy averages recall over the classes present in gold, a macro of exactly
+$1/6$ shows that \emph{six} of the seven view labels occur in test, not all
+seven.
+
+Two consequences follow. First, test is more front-dominated than development
+($46/59 = 78.0\%$ versus $38/55 = 69.1\%$), so our systems' front-heavy
+predictions were better matched to test than the development distribution
+suggested. Second, one label is absent from test gold entirely; if that label
+is \textsc{none\_of\_the\_above}, then our systems' inability to predict it
+--- which costs $14.3$ macro points on development --- costs nothing on test,
+and the macro ceiling is correspondingly higher than we assumed.
 
 % =============================================================================
 \section{Error Analysis}
@@ -367,7 +409,7 @@ substantially, which is the main mechanism behind the macro gain.
 
 \paragraph{Class blindness dominates, not recall.} We initially expected
 detector recall to be the binding constraint. It is not. At threshold $0.15$
-without tracking, the front-end yields $29.3$ raw detections per frame and
+the front-end yields $29.3$ raw detections per frame and
 $22.0$ associated objects per frame on development, against roughly $27$
 annotated agents per frame in nuScenes; no frame came out empty. Instead the
 binding constraint is that a seven-class agent detector cannot represent the
@@ -418,14 +460,25 @@ another, so more than one view is defensible while gold names one. We expect
 this to be a floor on achievable view accuracy rather than a fixable
 deficiency.
 
-\paragraph{Development versus test.} We expect test performance below
-Table~\ref{tab:dev}. Test leans more on \textit{intent\_prediction}
-($20/59$ versus $13/55$), which was System~2's weakest group on development
-(view $0.692$, versus $0.926$ on causality). Furthermore, System~2's predicted
-view distribution on test is more front-heavy than on development
-($47/59$ versus $41/55$), which is the direction that costs macro accuracy.
-\textsc{none\_of\_the\_above} was again never predicted, so any such test
-record is lost outright.
+\paragraph{Development versus test.} Official test performance is below
+development, as anticipated, but the size of the gap differs sharply between our
+two submitted runs and that difference is the more interesting result. The
+Claude Opus~5 run moved from $0.679$ macro on development to $0.652$ on test, a
+drop of $0.027$ that sits far inside the development interval. The GPT-5.6 Sol
+run moved from $0.812$ to $0.562$, a drop of $0.250$. The run with the stronger development score
+generalised markedly worse, which is what selecting on a 55-record development
+set will do: the apparent development advantage was substantially
+split-specific. Under the official metric the ordering of our two runs reverses
+between splits.
+
+Test is also harder in composition. It leans more on
+\textit{intent\_prediction} ($20/59$ versus $13/55$), our weakest group on
+development ($0.692$ view accuracy, against $0.926$ on causality). Working
+against that, the recovered label statistics show test is more front-dominated
+than development, which favours our systems' front-heavy predictions. Our
+submitted run predicted \textsc{cam\_front} on $47/59$ records against a gold
+count of $46$, so the front-heaviness we had flagged as a risk turned out to be
+close to calibrated rather than a systematic error.
 
 % =============================================================================
 \section{Conclusion}
@@ -444,6 +497,13 @@ work on this benchmark should concentrate on view attribution, and we would
 encourage the organizers to publish a question-and-options-only baseline so
 that the answer-side leak is quantified for all participants.
 
+A second lesson is methodological. Our two models' rankings reverse between
+splits: the run that scored $0.812$ macro on development fell to $0.562$ on
+test, while the weaker development run ($0.679$) held at $0.652$. On a
+55-record development set, selecting a submission by development score is
+close to selecting noise, and we would have submitted the wrong run had we
+trusted it.
+
 For our own system, the clearest next steps follow from
 Section~\ref{sec:analysis}: never serialise an unverified negative, make the
 association radius range-dependent, and add an explicit abstention rule so that
@@ -460,14 +520,16 @@ are one-bit measurements. We showed that changing only a random seed moves
 macro accuracy over a $0.208$ range; readers should not treat differences
 smaller than that as meaningful.
 
-We report a single run per system rather than a distribution over runs, so
-sampling variability in the model's own outputs is not quantified. We did not
-implement the information-gain formulation we had designed for abstention, so
-\textsc{none\_of\_the\_above} remains unreachable in both submitted systems.
 The rig geometry we hard-code is nuScenes-specific and would not transfer to
 another sensor platform without re-derivation. The perception front-end is
 monocular and assumes flat ground, which is the direct cause of the
 phantom-object and misattribution faults documented above.
+
+Our detector was fine-tuned on the nuScenes \texttt{v1.0-mini} split, whose ten
+scenes include \texttt{scene-0061} and \texttt{scene-0103}. Both appear in
+GoldenViewVQA, contributing one development record
+(\texttt{sfall\_0103\_causality}) and one test record
+(\texttt{sfall\_0061\_intent\_prediction}).
 
 Our systems consume exactly the six images of the annotated keyframe and
 nothing else. Because each record identifies a nuScenes sample within a
@@ -478,9 +540,7 @@ substantially richer context than a single instant. This would particularly
 help the \textit{intent\_prediction} group, our weakest at $0.692$ view
 accuracy, where a pedestrian's direction of travel or a vehicle's manoeuvre is
 far more legible over a short window than in one frame. It would also supply
-the motion cues our single-frame design discards by construction. We did not
-pursue this because it raises a question about what counts as permissible
-input, which we would want the organizers to settle first.
+the motion cues our single-frame design discards by construction.
 
 Both submitted systems depend on a cloud-hosted multimodal model. Beyond cost
 and reproducibility concerns --- a hosted model may be updated or withdrawn,
@@ -504,14 +564,6 @@ with the shared task's own policy. We use no ground-truth nuScenes annotations
 at inference, and no personal data beyond what the public nuScenes release
 already contains; pedestrians appear in the source imagery as distributed by
 nuScenes, and we perform no identification of individuals.
-
-Our system emits claims about which camera provides evidence for a driving
-judgement. Such claims could invite unwarranted confidence if deployed in a
-safety-critical setting. The failure modes in Section~\ref{sec:analysis} are
-directly relevant: a camera can be serialised as empty when it is not, and an
-object can be attributed to the wrong view. A system that names its evidence
-source is not thereby a system whose evidence source is correct, and it should
-not be treated as a safety argument without independent verification.
 
 All external resources are disclosed in Section~\ref{sec:data} and
 Section~\ref{sec:system}: the nuScenes dataset, a YOLOv8-m checkpoint

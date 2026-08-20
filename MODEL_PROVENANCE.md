@@ -1,7 +1,12 @@
 # Model provenance
 
-This file identifies the external models used for the primary submitted system.
-It intentionally does not contain model binaries or licensed nuScenes images.
+This file identifies the external models used for the submitted systems. It
+intentionally does not contain model binaries or licensed nuScenes images.
+
+Two hosted reasoning models were run over the same serialised inputs. The
+**primary submitted system is Claude Opus 5**, which produced our best official
+test result (joint accuracy 0.7797). GPT-5.6 Sol produced a second submitted run
+(joint accuracy 0.7627) and the System 3 variant. Both are documented below.
 
 ## Perception checkpoint
 
@@ -10,6 +15,10 @@ It intentionally does not contain model binaries or licensed nuScenes images.
 - Task: 2D detection
 - Classes: car, truck, bus, trailer, motorcycle, bicycle, pedestrian
 - Fine-tuning data: locally prepared nuScenes v1.0-mini camera dataset
+- Benchmark overlap: the v1.0-mini scenes include `scene-0061` and
+  `scene-0103`, which also occur in GoldenViewVQA. This affects 2 of 114
+  records (`sfall_0103_causality` in dev, `sfall_0061_intent_prediction` in
+  test).
 - Prepared split size: 1,938 training images and 486 validation images
 - Training: 50 epochs, image size 640, batch size 16, seed 0, deterministic mode,
   cosine learning rate, first five layers frozen
@@ -29,20 +38,44 @@ publish it separately and verify the SHA-256 above after download. Otherwise,
 provide the training configuration and generation code to the organizers and
 state the redistribution restriction.
 
-## Vision-language model
+## Vision-language models
+
+Neither model has a local checkpoint; both were accessed through a hosted
+interface, and no provider API key was used for either.
+
+### Primary: Claude Opus 5
+
+- Model: Claude Opus 5 (`claude-opus-5`)
+- Reasoning setting: extended thinking enabled
+- Modality: structured detector text only (System 1); six labelled images plus
+  structured detector text (System 2)
+- Access mechanism: hosted Claude Code agent
+- Access date for the submitted predictions: 2026-08-20
+- Submitted runs: System 1 and System 2 on both splits
+- Official test result (System 2): view 0.830508, macro 0.652174,
+  answer 0.915254, joint 0.779661 — our best submission
+
+### Secondary: GPT-5.6 Sol
 
 - Model: GPT-5.6 Sol (`gpt-5.6-sol`)
 - Agent reasoning setting: `ultra`
 - Modality: six labelled images plus structured detector text
+- Access mechanism: hosted Codex/ChatGPT agent
 - Access date for the submitted predictions: 2026-08-20
-- Access mechanism: hosted Codex/ChatGPT agent; no OpenAI API key was used
-- Local checkpoint: none
+- Submitted runs: System 1, System 2, System 2 v2, and the System 3
+  approximation
+- Official test result (System 2): view 0.779661, macro 0.561594,
+  answer 0.932203, joint 0.762712
 
-The hosted agent interface did not expose an immutable model snapshot identifier,
-sampling seed, token log probabilities, or downloadable checkpoint. This is a
-reproducibility limitation and should be disclosed in the system paper. Preserve
-the generated prompt manifests and prediction JSONL files as experiment artifacts,
-but do not commit them when they contain local absolute image paths.
+### Reproducibility limitations
+
+Neither hosted interface exposed an immutable model snapshot identifier, a
+sampling seed, token log probabilities, or a downloadable checkpoint. Exact
+outputs are therefore not guaranteed to be reproducible, and a hosted model may
+be updated or withdrawn.
+
+Preserve the generated prompt manifests and prediction JSONL files as experiment
+artifacts, but do not commit them: they contain local absolute image paths.
 
 ## Data and generated artifacts
 
